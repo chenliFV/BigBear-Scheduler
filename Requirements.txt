@@ -1,0 +1,52 @@
+# Scheduler 项目依赖
+# 安装: pip install -r requirements.txt
+
+# ===== 核心依赖（Web 框架 + ASGI 服务器）=====
+# FastAPI Web 框架（dashboard 和 REST API）
+fastapi==0.138.2
+# ASGI 服务器（运行 FastAPI）
+uvicorn==0.49.0
+# Starlette（FastAPI 底层依赖，显式声明便于版本锁定）
+starlette==1.3.1
+# ASGI 事件循环/HTTP 工具（uvicorn/fastapi 依赖）
+anyio==4.14.1
+h11==0.16.0
+idna==3.18
+click==8.4.2
+
+# ===== 数据校验（FastAPI/SQLModel 依赖）=====
+pydantic==2.13.4
+pydantic_core==2.46.4
+annotated-types==0.7.0
+annotated-doc==0.0.4
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+
+# ===== 调度器依赖 =====
+# cron 表达式解析（scheduler.cron() 使用，不使用 cron 可去掉）
+croniter==6.2.2
+# croniter 的日期解析依赖
+python-dateutil==2.9.0.post0
+six==1.17.0
+
+# ===== 存储后端依赖（按需安装）=====
+# SQLModel 存储后端（storage="sqlmodel" 时需要，仅用 JSON 后端可去掉）
+sqlmodel==0.0.39
+# SQLAlchemy（SQLModel 底层依赖，同时被 TableGenerator/db_utils 直接使用）
+SQLAlchemy==2.0.51
+# SQLAlchemy 协程支持依赖
+greenlet==3.5.3
+
+# ===== 数据库驱动（按使用的数据库按需保留）=====
+# MySQL 驱动（使用 mysql+pymysql:// 连接串时需要，使用 SQLite 可去掉）
+PyMySQL==1.2.0
+# PostgreSQL 驱动（使用 postgresql+psycopg2:// 连接串时需要，使用 SQLite 可去掉）
+psycopg2==2.9.12
+
+# ===== 测试依赖（仅开发环境需要）=====
+pytest==9.1.1
+iniconfig==2.3.0
+pluggy==1.6.0
+packaging==26.2
+Pygments==2.20.0
+esprima==4.0.1

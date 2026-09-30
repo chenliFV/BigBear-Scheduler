@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <title>BigBear</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="dashboard/css/dashboard.css?v=19">
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-left">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <polyline points="12 7 12 12 15 14"></polyline>
+                    </svg>
+                </div>
+                <span>BigBear</span>
+            </div>
+            <div class="main-tabs">
+                <button class="main-tab active" data-i18n="tab_dashboard" onclick="switchView('dashboard')">Dashboard</button>
+                <button class="main-tab" data-i18n="tab_history" onclick="switchView('history')">History</button>
+                <button class="main-tab" onclick="switchView('failed')"><span data-i18n="tab_failed">Failed</span> <span id="failed-badge" class="tab-badge"
+                        style="display: none;">0</span></button>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <div id="scheduler-status" class="status-pill">
+                <span class="dot"></span>
+                <span data-i18n="running">Running</span>
+            </div>
+            <div id="connection-badge" class="connection-pill disconnected">
+                <span class="dot"></span>
+                <span id="connection-text" data-i18n="connecting">Connecting</span>
+            </div>
+            <div class="lang-dropdown" id="lang-dropdown">
+                <button class="lang-dropdown-trigger" onclick="toggleLangDropdown(event)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span class="lang-current" id="lang-current">中</span>
+                    <span class="lang-arrow">▼</span>
+                </button>
+                <div class="lang-dropdown-menu">
+                    <button class="lang-option" data-lang="zh" onclick="setLang('zh')">
+                        <span>中文</span>
+                        <span class="lang-check">✓</span>
+                    </button>
+                    <button class="lang-option" data-lang="en" onclick="setLang('en')">
+                        <span>English</span>
+                        <span class="lang-check">✓</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main">
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view active">
+            <div class="stats-row">
+                <div class="stat-box">
+                    <div class="stat-label" data-i18n="stat_active_jobs">Active Jobs</div>
+                    <div class="stat-value" id="stat-jobs">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label" data-i18n="stat_total_runs">Total Runs</div>
+                    <div class="stat-value" id="stat-runs">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label" data-i18n="stat_failures">Failures</div>
+                    <div class="stat-value" id="stat-failures">0</div>
+                    <div class="stat-sub" id="stat-rate"></div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label" data-i18n="stat_uptime">Uptime</div>
+                    <div class="stat-value" id="stat-uptime">--</div>
+                </div>
+            </div>
+
+            <div class="section-box">
+                <div class="section-header">
+                    <div class="section-title" data-i18n="scheduled_jobs">Scheduled Jobs</div>
+                </div>
+                <div class="history-toolbar">
+                    <select class="filter-select" id="jobs-status-filter">
+                        <option value="all" data-i18n="all_statuses">All Statuses</option>
+                        <!-- <option value="running" data-i18n="running">Running</option> -->
+                         <option value="scheduled" data-i18n="scheduled">Scheduled</option>
+                        <option value="paused" data-i18n="paused">Paused</option>
+                    </select>
+                    <input type="text" class="search-input" data-i18n-ph="ph_search_job" placeholder="Search job name..." id="jobs-search">
+                    <button class="reset-btn" id="jobs-reset-btn" data-i18n="reset">Reset</button>
+                    <button class="query-btn" id="jobs-query-btn" data-i18n="query">Query</button>
+                    <button class="query-btn" onclick="openAddTaskModal()">
+                        <!-- <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg> -->
+                        <span data-i18n="add_task">Add Task</span>
+                    </button>
+                    <div class="history-count" id="jobs-count-text">0 entries</div>
+                </div>
+                <div class="history-container">
+                    <table class="jobs-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_job">Job</th>
+                                <th data-i18n="th_schedule">Schedule</th>
+                                <th data-i18n="th_status">Status</th>
+                                <th data-i18n="th_last_runs">Last 5 Runs</th>
+                                <th data-i18n="th_next_run">Next Run</th>
+                                <th data-i18n="th_actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobs-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="jobs-pagination" class="pagination-container"></div>
+            </div>
+        </div>
+
+        <!-- History View -->
+        <div id="history-view" class="view">
+            <div class="section-box">
+                <div class="section-header">
+                    <div class="section-title" data-i18n="execution_history">Execution History</div>
+                </div>
+                <div class="history-toolbar">
+                    <select class="filter-select" id="history-status-filter">
+                        <option value="all" data-i18n="all_statuses">All Statuses</option>
+                        <option value="completed" data-i18n="completed">Completed</option>
+                        <option value="failed" data-i18n="failed">Failed</option>
+                        <option value="missed" data-i18n="missed">Missed</option>
+                    </select>
+                    <select class="filter-select" id="history-job-filter">
+                        <option value="all" data-i18n="all_jobs">All Jobs</option>
+                    </select>
+                    <input type="text" class="search-input" data-i18n-ph="ph_search" placeholder="Search..." id="history-search">
+                    <button class="reset-btn" id="history-reset-btn" data-i18n="reset">Reset</button>
+                    <button class="query-btn" id="history-query-btn" data-i18n="query">Query</button>
+                    <div class="history-count" id="history-count">0 entries</div>
+                </div>
+                <div class="history-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_job">Job</th>
+                                <th data-i18n="th_status">Status</th>
+                                <th data-i18n="th_time">Time</th>
+                                <th data-i18n="th_duration">Duration</th>
+                                <th data-i18n="th_details">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="history-pagination" class="pagination-container"></div>
+            </div>
+        </div>
+
+        <!-- Failed Jobs (Dead Letter Queue) View -->
+        <div id="failed-view" class="view">
+            <div class="section-box">
+                <div class="section-header">
+                    <div class="section-title" data-i18n="failed_jobs_dlq">Failed Jobs (Dead Letter Queue)</div>
+                    <button class="action-btn danger" onclick="clearDeadLetters()" id="clear-dead-letters-btn"
+                        style="display: none;" data-i18n="clear_all">Clear All</button>
+                </div>
+                <div class="dead-letter-info">
+                    <p data-i18n="dlq_desc">Jobs that have exhausted all retry attempts are logged here. Use this to diagnose recurring issues and track job failures.</p>
+                </div>
+                <div class="history-toolbar">
+                    <input type="text" class="search-input" data-i18n-ph="ph_search_failed" placeholder="Search failed jobs..." id="failed-search">
+                    <button class="reset-btn" id="failed-reset-btn" data-i18n="reset">Reset</button>
+                    <button class="query-btn" id="failed-query-btn" data-i18n="query">Query</button>
+                    <div class="history-count" id="failed-count">0 entries</div>
+                </div>
+                <div class="history-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="th_job">Job</th>
+                                <th data-i18n="th_time">Time</th>
+                                <th data-i18n="th_retries">Retries</th>
+                                <th data-i18n="th_duration">Duration</th>
+                                <th data-i18n="th_details">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="failed-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="failed-pagination" class="pagination-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Job Detail Modal -->
+    <div class="modal-overlay" id="job-detail-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" data-i18n="job_detail">Job Detail</div>
+                <button class="modal-close" onclick="closeJobDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_job_id">Job ID</div>
+                        <div class="detail-value" id="detail-job-id"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_func_name">Function Name</div>
+                        <div class="detail-value" id="detail-func-name"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_status">Status</div>
+                        <div class="detail-value"><span id="detail-status" class="job-status"></span></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_paused">Paused</div>
+                        <div class="detail-value" id="detail-paused"></div>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <div class="detail-label" data-i18n="d_schedule">Schedule</div>
+                        <div class="detail-value" id="detail-schedule"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_next_run">Next Run</div>
+                        <div class="detail-value" id="detail-next-run"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_countdown">Countdown</div>
+                        <div class="detail-value" id="detail-countdown"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_last_run">Last Run</div>
+                        <div class="detail-value" id="detail-last-run"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_run_count">Run Count</div>
+                        <div class="detail-value" id="detail-run-count"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_retry_count">Retry Count</div>
+                        <div class="detail-value" id="detail-retry-count"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_max_retries">Max Retries</div>
+                        <div class="detail-value" id="detail-max-retries"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="d_timeout">Timeout (s)</div>
+                        <div class="detail-value" id="detail-timeout"></div>
+                    </div>
+                    <div class="detail-item detail-item-full" id="detail-script-path-row" style="display: none;">
+                        <div class="detail-label" data-i18n="d_script_path">Script Path</div>
+                        <div class="detail-value" id="detail-script-path"></div>
+                    </div>
+                    <div class="detail-item detail-item-full" id="detail-script-args-row" style="display: none;">
+                        <div class="detail-label" data-i18n="d_script_args">Script Arguments</div>
+                        <div class="detail-value" id="detail-script-args"></div>
+                    </div>
+                    <div class="detail-item detail-item-full" id="detail-script-code-row" style="display: none;">
+                        <div class="detail-label" data-i18n="d_script_code">Inline Code</div>
+                        <div class="detail-value"><pre class="detail-code" id="detail-script-code"></pre></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeJobDetailModal()" data-i18n="cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Execution Detail Modal -->
+    <div class="modal-overlay" id="execution-detail-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" data-i18n="execution_detail">Execution Detail</div>
+                <button class="modal-close" onclick="closeExecutionDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="th_job">Job</div>
+                        <div class="detail-value" id="exec-detail-job"></div>
+                    </div>
+                    <div class="detail-item" id="exec-detail-status-row">
+                        <div class="detail-label" data-i18n="th_status">Status</div>
+                        <div class="detail-value"><span id="exec-detail-status" class="history-status"></span></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="th_time">Time</div>
+                        <div class="detail-value" id="exec-detail-time"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="th_duration">Duration</div>
+                        <div class="detail-value" id="exec-detail-duration"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="th_run_no">Run #</div>
+                        <div class="detail-value" id="exec-detail-run-no"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label" data-i18n="th_retries">Retries</div>
+                        <div class="detail-value" id="exec-detail-retries"></div>
+                    </div>
+                    <div class="detail-item detail-item-full" id="exec-detail-error-row">
+                        <div class="detail-label" data-i18n="th_error">Error</div>
+                        <div class="detail-value"><pre class="detail-code" id="exec-detail-error"></pre></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeExecutionDetailModal()" data-i18n="cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal-overlay" id="add-task-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="add-task-modal-title" data-i18n="add_new_task">Add New Task</div>
+                <button class="modal-close" onclick="closeAddTaskModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-task-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label data-i18n="task_source">Task Source <span class="required">*</span></label>
+                        <div class="source-tabs">
+                            <button type="button" class="source-tab active" id="tab-script-file"
+                                onclick="switchSource('script-file')" data-i18n="script_file">Script File</button>
+                            <button type="button" class="source-tab" id="tab-inline-code"
+                                onclick="switchSource('inline-code')" data-i18n="inline_code">Inline Code</button>
+                        </div>
+
+                        <!-- Script File Panel -->
+                        <div class="source-panel active" id="panel-script-file">
+                            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px;">
+                                <span data-i18n="script_path">Script Path</span> <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" id="task-script-path"
+                                placeholder="/path/to/your/script.py">
+                            <div class="hint" data-i18n="hint_script_path">Absolute path to the Python script file to execute.</div>
+                        </div>
+
+                        <!-- Inline Code Panel -->
+                        <div class="source-panel" id="panel-inline-code">
+                            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px;">
+                                <span data-i18n="python_code">Python Code</span> <span class="required">*</span>
+                            </label>
+                            <textarea class="code-editor" id="task-script-code"
+                                placeholder="import datetime&#10;print(f'Hello at {datetime.datetime.now()}')&#10;&#10;# Write your Python code here"></textarea>
+                            <div class="hint" data-i18n="hint_python_code">Python code to execute. Will be written to a temp file and run with the project's Python interpreter.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="task_name">Task Name</label>
+                        <input type="text" class="form-input" id="task-func-name"
+                            data-i18n-ph="ph_task_name" placeholder="auto-generated (script filename or 'inline_code')">
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="schedule_type">Schedule Type <span class="required">*</span></label>
+                        <select class="form-select" id="task-schedule-type" onchange="onScheduleTypeChange()">
+                            <option value="interval" data-i18n="sch_interval">Interval (every N seconds)</option>
+                            <option value="daily" data-i18n="sch_daily">Daily (at specific time)</option>
+                            <option value="cron" data-i18n="sch_cron">Cron Expression</option>
+                            <option value="once" data-i18n="sch_once">Once (one-time delay)</option>
+                        </select>
+                    </div>
+
+                    <!-- Interval fields -->
+                    <div class="schedule-fields" id="fields-interval">
+                        <div class="form-group">
+                            <label data-i18n="interval_seconds">Interval (seconds) <span class="required">*</span></label>
+                            <input type="number" class="form-input" id="task-interval" placeholder="60" min="1" step="1">
+                            <div class="hint" data-i18n="hint_interval">Execution interval in seconds. E.g. 60 = every minute.</div>
+                        </div>
+                    </div>
+
+                    <!-- Daily fields -->
+                    <div class="schedule-fields" id="fields-daily">
+                        <div class="form-group">
+                            <label data-i18n="time_hhmm">Time (HH:MM) <span class="required">*</span></label>
+                            <input type="time" class="form-input" id="task-schedule-time" value="09:00">
+                            <div class="hint" data-i18n="hint_daily_time">Time of day to execute.</div>
+                        </div>
+                    </div>
+
+                    <!-- Cron fields -->
+                    <div class="schedule-fields" id="fields-cron">
+                        <div class="form-group">
+                            <label data-i18n="cron_expression">Cron Expression <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="task-cron-expression"
+                                placeholder="0 9 * * 1-5 (weekdays at 9 AM)" readonly>
+                            <div class="hint" data-i18n="hint_cron">Format: minute hour day month weekday. E.g. "*/30 * * * *" = every 30 min.</div>
+                        </div>
+
+                        <!-- 可视化 Cron 配置面板 -->
+                        <div class="cron-builder">
+                            <div class="cron-builder-title" data-i18n="cron_builder_title">可视化配置（自动生成表达式）</div>
+                            <div class="cron-fields-grid">
+                                <!-- 分钟 -->
+                                <div class="cron-field">
+                                    <label data-i18n="cron_minute">分钟 (0-59)</label>
+                                    <select class="cron-mode" data-field="minute" data-i18n-options="cron_mode_">
+                                        <option value="every" data-i18n="cron_mode_every">每分钟 (*)</option>
+                                        <option value="step" data-i18n="cron_mode_step">每 N 分钟</option>
+                                        <option value="specific" data-i18n="cron_mode_specific">指定分钟</option>
+                                        <option value="range" data-i18n="cron_mode_range">范围</option>
+                                    </select>
+                                    <input type="text" class="cron-value form-input" data-field="minute" placeholder="0,15,30,45" disabled>
+                                </div>
+                                <!-- 小时 -->
+                                <div class="cron-field">
+                                    <label data-i18n="cron_hour">小时 (0-23)</label>
+                                    <select class="cron-mode" data-field="hour">
+                                        <option value="every" data-i18n="cron_mode_every_h">每小时 (*)</option>
+                                        <option value="step" data-i18n="cron_mode_step_h">每 N 小时</option>
+                                        <option value="specific" data-i18n="cron_mode_specific_h">指定小时</option>
+                                        <option value="range" data-i18n="cron_mode_range_h">范围</option>
+                                    </select>
+                                    <input type="text" class="cron-value form-input" data-field="hour" placeholder="0,9,12,18" disabled>
+                                </div>
+                                <!-- 日 -->
+                                <div class="cron-field">
+                                    <label data-i18n="cron_day">日 (1-31)</label>
+                                    <select class="cron-mode" data-field="day">
+                                        <option value="every" data-i18n="cron_mode_every_d">每天 (*)</option>
+                                        <option value="step" data-i18n="cron_mode_step_d">每 N 天</option>
+                                        <option value="specific" data-i18n="cron_mode_specific_d">指定日</option>
+                                        <option value="range" data-i18n="cron_mode_range_d">范围</option>
+                                    </select>
+                                    <input type="text" class="cron-value form-input" data-field="day" placeholder="1,15" disabled>
+                                </div>
+                                <!-- 月 -->
+                                <div class="cron-field">
+                                    <label data-i18n="cron_month">月 (1-12)</label>
+                                    <select class="cron-mode" data-field="month">
+                                        <option value="every" data-i18n="cron_mode_every_m">每月 (*)</option>
+                                        <option value="step" data-i18n="cron_mode_step_m">每 N 月</option>
+                                        <option value="specific" data-i18n="cron_mode_specific_m">指定月</option>
+                                        <option value="range" data-i18n="cron_mode_range_m">范围</option>
+                                    </select>
+                                    <input type="text" class="cron-value form-input" data-field="month" placeholder="1,4,7,10" disabled>
+                                </div>
+                                <!-- 周 -->
+                                <div class="cron-field">
+                                    <label data-i18n="cron_week">周 (0-6, 0=周日)</label>
+                                    <select class="cron-mode" data-field="week">
+                                        <option value="every" data-i18n="cron_mode_every_w">每天 (*)</option>
+                                        <option value="specific" data-i18n="cron_mode_specific_w">指定星期</option>
+                                        <option value="range" data-i18n="cron_mode_range_w">范围</option>
+                                    </select>
+                                    <input type="text" class="cron-value form-input" data-field="week" placeholder="1-5 (周一至周五)" disabled>
+                                </div>
+                            </div>
+                            <!-- 常用预设 -->
+                            <div class="cron-presets">
+                                <span class="cron-presets-label" data-i18n="cron_presets">常用预设：</span>
+                                <button type="button" class="cron-preset-btn" data-expr="* * * * *" data-i18n="cron_preset_min">每分钟</button>
+                                <button type="button" class="cron-preset-btn" data-expr="*/5 * * * *" data-i18n="cron_preset_5min">每5分钟</button>
+                                <button type="button" class="cron-preset-btn" data-expr="0 * * * *" data-i18n="cron_preset_hourly">每小时</button>
+                                <button type="button" class="cron-preset-btn" data-expr="0 9 * * *" data-i18n="cron_preset_daily9">每天9点</button>
+                                <button type="button" class="cron-preset-btn" data-expr="0 9 * * 1-5" data-i18n="cron_preset_weekday9">工作日9点</button>
+                                <button type="button" class="cron-preset-btn" data-expr="0 0 * * 0" data-i18n="cron_preset_weekly">每周日0点</button>
+                                <button type="button" class="cron-preset-btn" data-expr="0 0 1 * *" data-i18n="cron_preset_monthly">每月1号0点</button>
+                            </div>
+                            <!-- 预览 -->
+                            <div class="cron-preview">
+                                <span data-i18n="cron_preview">生成表达式：</span>
+                                <code id="cron-preview-text">* * * * *</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Once fields -->
+                    <div class="schedule-fields" id="fields-once">
+                        <div class="form-group">
+                            <label data-i18n="delay_seconds">Delay (seconds) <span class="required">*</span></label>
+                            <input type="number" class="form-input" id="task-once-delay" placeholder="60" min="1" step="1">
+                            <div class="hint" data-i18n="hint_once_delay">Delay before one-time execution in seconds.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="script-args-group">
+                        <label data-i18n="script_arguments">Script Arguments</label>
+                        <input type="text" class="form-input" id="task-script-args"
+                            data-i18n-ph="ph_script_args" placeholder='--debug --port 8080 (space-separated)'>
+                        <div class="hint" data-i18n="hint_script_args">Command-line arguments passed to the script. Leave empty if none.</div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label data-i18n="max_retries">Max Retries</label>
+                            <input type="number" class="form-input" id="task-max-retries" value="3" min="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="timeout_s">Timeout (s)</label>
+                            <input type="number" class="form-input" id="task-timeout" data-i18n-ph="ph_none" placeholder="none" min="1" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="timezone">Timezone</label>
+                            <select class="form-input" id="task-timezone">
+                                <option value="Asia/Shanghai" selected>Asia/Shanghai (UTC+8 北京时间)</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo (UTC+9 日本标准时)</option>
+                                <option value="Asia/Singapore">Asia/Singapore (UTC+8 新加坡)</option>
+                                <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30 印度)</option>
+                                <option value="Asia/Dubai">Asia/Dubai (UTC+4 迪拜)</option>
+                                <option value="Europe/London">Europe/London (UTC+0 伦敦)</option>
+                                <option value="Europe/Paris">Europe/Paris (UTC+1 巴黎)</option>
+                                <option value="Europe/Moscow">Europe/Moscow (UTC+3 莫斯科)</option>
+                                <option value="America/New_York">America/New_York (UTC-5 纽约)</option>
+                                <option value="America/Chicago">America/Chicago (UTC-6 芝加哥)</option>
+                                <option value="America/Los_Angeles">America/Los_Angeles (UTC-8 洛杉矶)</option>
+                                <option value="America/Sao_Paulo">America/Sao_Paulo (UTC-3 圣保罗)</option>
+                                <option value="Australia/Sydney">Australia/Sydney (UTC+10 悉尼)</option>
+                                <option value="Pacific/Auckland">Pacific/Auckland (UTC+12 奥克兰)</option>
+                                <option value="UTC">UTC (协调世界时)</option>
+                                <option value="local" data-i18n="tz_local">local (系统本地时区)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="task-catch-up" checked style="cursor: pointer;">
+                            <span data-i18n="catch_up">Catch up missed executions</span>
+                        </label>
+                        <div class="hint" data-i18n="hint_catch_up">If checked, executions missed during scheduler downtime will be compensated.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddTaskModal()" data-i18n="cancel">Cancel</button>
+                <button class="btn btn-primary" id="submit-task-btn" onclick="submitAddTask()" data-i18n="add_task">Add Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注入路由前缀供外部 JS 使用（{{prefix}} 由后端替换） -->
+    <script>window.SCHEDULER_PREFIX = '{{prefix}}';</script>
+    <script src="dashboard/js/i18n.js?v=15"></script>
+    <script src="dashboard/js/dashboard.js?v=24"></script>
+</body>
+
+</html>

@@ -1,0 +1,1819 @@
+/*
+ * ============================================================================
+ * Scheduler Dashboard 样式表
+ * ============================================================================
+ * 文件作用:
+ *   定义 Scheduler Web Dashboard 的全部视觉样式，采用深色科技风主题。
+ *
+ * 主题设计:
+ *   - 配色: 深蓝黑底 (#0a0e1a) + 蓝色强调色 (#3b82f6)，护眼且具科技感
+ *   - 字体: Outfit (无衬线 UI) + JetBrains Mono (等宽，用于数据/代码)
+ *   - 状态色: 运行中(琥珀)、已调度，等待执行(蓝)、已完成(绿)、已失败(红)、已暂停(蓝)
+ *   - 圆角与阴影: 统一的 --radius-* 与 --shadow-* 变量保证视觉一致性
+ *
+ * 文件结构（自上而下）:
+ *   1. CSS 变量定义 (:root)       - 全局设计 token
+ *   2. 全局重置 (* / body)         - 盒模型与基础排版
+ *   3. 导航栏 (.navbar)            - 顶部 Logo / 标签页 / 状态指示
+ *   4. 主区域 (.main)              - 视图切换容器
+ *   5. 统计卡片 (.stats-row)       - 仪表盘顶部数据概览
+ *   6. 任务表格 (.jobs-table)      - Dashboard 视图的任务列表
+ *   7. 运行指示点 (.run-dots)      - 最近 5 次执行状态可视化
+ *   8. 操作按钮 (.action-btn)      - 暂停/恢复/取消等
+ *   9. 历史表格 (.history-table)   - 历史记录视图
+ *  10. 空状态 (.empty-state)       - 无数据时的提示
+ *  11. Toast 提示 (.toast)         - 右上角临时消息
+ *  12. 响应式 (@media)             - 小屏适配
+ *  13. 滚动条 (::-webkit-scrollbar)- 自定义滚动条外观
+ *  14. 添加任务弹窗 (.modal-*)     - 任务创建模态框
+ *  15. 语言下拉 (.lang-dropdown)   - 右上角语言切换器
+ *  16. 任务源标签 (.source-*)      - Script Path / Inline Code 切换
+ *
+ * 依赖:
+ *   - dashboard.html 中的 class 命名
+ *   - Google Fonts 加载的 Outfit 与 JetBrains Mono 字体
+ * ============================================================================
+ */
+/* ---- 1. 全局 CSS 变量（设计 Token）----
+   定义颜色、字体、圆角、阴影、过渡等全局可复用值，
+   所有组件通过 var(--xxx) 引用，便于统一调整主题。 */
+:root {
+  --bg-primary: #060912;
+  --bg-secondary: rgba(15, 23, 41, 0.72);
+  --bg-tertiary: rgba(26, 35, 50, 0.6);
+  --bg-elevated: rgba(30, 41, 59, 0.85);
+  --border-subtle: rgba(59, 130, 246, 0.15);
+  --border-default: rgba(59, 130, 246, 0.3);
+  --text-primary: #f0f9ff;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --accent-primary: #3b82f6;
+  --accent-secondary: #60a5fa;
+  --accent-cyan: #06b6d4;
+  --accent-purple: #8b5cf6;
+  --accent-pink: #ec4899;
+  --gradient-primary: linear-gradient(
+    135deg,
+    #3b82f6 0%,
+    #8b5cf6 50%,
+    #ec4899 100%
+  );
+  --gradient-cyan: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+  --gradient-danger: linear-gradient(135deg, #ef4444 0%, #ec4899 100%);
+  --status-running: #f59e0b;
+  --status-running-bg: rgba(245, 158, 11, 0.12);
+  --status-scheduled: #3b82f6;
+  --status-scheduled-bg: rgba(59, 130, 246, 0.12);
+  --status-completed: #10b981;
+  --status-completed-bg: rgba(16, 185, 129, 0.12);
+  --status-failed: #ef4444;
+  --status-failed-bg: rgba(239, 68, 68, 0.12);
+  --status-paused: #f59e0b;
+  --status-paused-bg: rgba(245, 158, 11, 0.12);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", "Consolas", "Liberation Mono",
+    monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.35);
+  --shadow-glow-purple: 0 0 24px rgba(139, 92, 246, 0.4);
+  --shadow-glow-cyan: 0 0 20px rgba(6, 182, 212, 0.4);
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- 2. 全局重置 ----
+   统一盒模型为 border-box，消除浏览器默认 margin/padding 差异。 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 页面主体：深色背景、字体、最小宽度（响应式布局基准） */
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(59, 130, 246, 0.12) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      rgba(139, 92, 246, 0.12) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(6, 182, 212, 0.06) 0%,
+      transparent 50%
+    ),
+    var(--bg-primary);
+  background-attachment: fixed;
+  position: relative;
+}
+
+/* 动态网格背景层（伪元素），营造科技感 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+  animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+  0% {
+    background-position:
+      0 0,
+      0 0;
+  }
+  100% {
+    background-position:
+      40px 40px,
+      40px 40px;
+  }
+}
+
+/* ---- 3. 顶部导航栏 ----
+   包含左侧 Logo + 主标签页(Dashboard/History/Failed) +
+   右侧状态指示(运行状态/连接状态/语言切换)。 */
+/* Navbar */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border-default);
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 0 32px rgba(59, 130, 246, 0.08);
+}
+
+/* 导航栏底部渐变光带 */
+.navbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--gradient-primary);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 2px 12px rgba(59, 130, 246, 0.5),
+    0 0 16px rgba(139, 92, 246, 0.4);
+  animation: logoGlow 3s ease-in-out infinite;
+}
+
+@keyframes logoGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 2px 12px rgba(59, 130, 246, 0.5),
+      0 0 16px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 2px 16px rgba(59, 130, 246, 0.7),
+      0 0 24px rgba(139, 92, 246, 0.6);
+  }
+}
+
+.logo-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.main-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(15, 23, 41, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.main-tab {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.main-tab:hover {
+  color: var(--text-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.main-tab.active {
+  background: var(--gradient-cyan);
+  color: #fff;
+  box-shadow:
+    0 2px 8px rgba(59, 130, 246, 0.4),
+    0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  background: var(--status-failed);
+  color: white;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.dead-letter-info {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.dead-letter-info p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--status-completed-bg);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--status-completed);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.status-pill.stopped {
+  background: var(--status-failed-bg);
+  color: var(--status-failed);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+.connection-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--status-completed-bg);
+  color: var(--status-completed);
+}
+
+.connection-pill.disconnected {
+  background: var(--status-failed-bg);
+  color: var(--status-failed);
+}
+
+/* ---- 4. 主内容区 ----
+   视图容器，通过 .view.active 切换 Dashboard / History / Failed 三个视图。 */
+/* Main */
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  position: relative;
+  z-index: 1;
+}
+
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+/* ---- 5. 统计卡片行 ----
+   Dashboard 视图顶部的 4 个数据卡片：活跃任务、总执行次数、失败次数、运行时长。 */
+/* Stats Row */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.stat-box {
+  background: rgba(15, 23, 41, 0.6);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-smooth);
+}
+
+/* 卡片顶部渐变光带 */
+.stat-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-primary);
+  opacity: 0.6;
+  transition: opacity var(--transition-smooth);
+}
+
+.stat-box:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-default);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(59, 130, 246, 0.2);
+}
+
+.stat-box:hover::before {
+  opacity: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: var(--gradient-cyan);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.stat-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.stat-sub.bad {
+  color: var(--status-failed);
+}
+
+/* ---- 6. 任务表格 ----
+   Dashboard 视图核心：展示所有已注册任务的名称、调度、状态、最近运行、下次执行、操作按钮。 */
+/* Jobs Table */
+.section-box {
+  background: rgba(15, 23, 41, 0.55);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    transparent 100%
+  );
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.3px;
+}
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.jobs-table th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.jobs-table td {
+  padding: 12px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.jobs-table tr:last-child td {
+  border-bottom: none;
+}
+
+.jobs-table tr:hover td {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.06) 0%,
+    rgba(139, 92, 246, 0.04) 100%
+  );
+}
+
+.job-name {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent-secondary);
+}
+
+.job-schedule {
+  color: var(--text-secondary);
+}
+
+.job-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.job-status.scheduled {
+  background: var(--status-scheduled-bg);
+  color: var(--status-scheduled);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+.job-status.running {
+  background: var(--status-running-bg);
+  color: var(--status-running);
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+}
+
+.job-status.paused {
+  background: var(--status-paused-bg);
+  color: var(--status-paused);
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+}
+
+.job-status.failed {
+  background: var(--status-failed-bg);
+  color: var(--status-failed);
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+}
+
+/* ---- 7. 最近运行指示点 ----
+   每个任务显示最近 5 次执行的小圆点，绿色=成功、红色=失败、空=无数据，
+   鼠标悬停显示具体状态与时间。 */
+/* Run Indicators - 5 dots */
+.run-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.run-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.run-dot.success {
+  background: var(--status-completed);
+  border-color: var(--status-completed);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.run-dot.failed {
+  background: var(--status-failed);
+  border-color: var(--status-failed);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+  animation: failBlink 2s ease-in-out infinite;
+}
+
+@keyframes failBlink {
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+  }
+}
+
+.run-dot-tooltip {
+  position: relative;
+}
+
+.run-dot-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 10;
+  margin-bottom: 4px;
+}
+
+.next-run {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.next-run-countdown {
+  color: var(--accent-secondary);
+  font-weight: 500;
+}
+
+/* ---- 8. 操作按钮 ----
+   每行任务的暂停/恢复、取消按钮，danger 样式用于破坏性操作(取消)。 */
+/* Action Buttons */
+.action-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  padding: 5px 10px;
+  background: rgba(26, 35, 50, 0.8);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.action-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  transform: translateY(-1px);
+}
+
+/* 暂停/恢复按钮：渐变黄橙（警示操作）*/
+.action-btn.warning {
+  background: var(--gradient-warning);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.action-btn.warning:hover {
+  box-shadow:
+    0 4px 16px rgba(245, 158, 11, 0.5),
+    0 0 12px rgba(236, 72, 153, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 取消按钮：渐变红粉（破坏性操作）*/
+.action-btn.danger {
+  background: var(--gradient-danger);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.action-btn.danger:hover {
+  box-shadow:
+    0 4px 16px rgba(239, 68, 68, 0.5),
+    0 0 12px rgba(236, 72, 153, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 立即执行按钮：渐变青绿（主操作）*/
+.action-btn.primary {
+  background: var(--gradient-success);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.action-btn.primary:hover {
+  box-shadow:
+    0 4px 16px rgba(16, 185, 129, 0.5),
+    0 0 12px rgba(6, 182, 212, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 查看详情按钮：渐变蓝紫（信息操作）*/
+.action-btn.info {
+  background: var(--gradient-cyan);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.action-btn.info:hover {
+  box-shadow:
+    0 4px 16px rgba(59, 130, 246, 0.5),
+    0 0 12px rgba(6, 182, 212, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 修改任务按钮：渐变紫粉（编辑操作，仅暂停时可用）*/
+.action-btn.edit {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.action-btn.edit:hover {
+  box-shadow:
+    0 4px 16px rgba(139, 92, 246, 0.5),
+    0 0 12px rgba(236, 72, 153, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ---- 9. 历史记录表格 ----
+   History 视图：展示任务执行历史，支持按状态/任务名筛选与关键词搜索。 */
+/* History Table */
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.search-input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-size: 12px;
+  width: 180px;
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.history-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  background: var(--bg-tertiary);
+  position: sticky;
+  top: 0;
+}
+
+.history-table td {
+  padding: 10px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.history-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.history-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.history-status.completed {
+  background: var(--status-completed-bg);
+  color: var(--status-completed);
+}
+
+.history-status.failed {
+  background: var(--status-failed-bg);
+  color: var(--status-failed);
+}
+
+.history-status.missed {
+  background: var(--status-running-bg);
+  color: var(--status-running);
+}
+
+.history-job {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.history-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.history-duration {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.history-error {
+  color: var(--status-failed);
+  font-size: 12px;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-container {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+/* ---- 10. 空状态 ----
+   表格无数据时显示的居中淡色提示文字。 */
+/* Empty state */
+.empty-state {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+/* ---- 11. Toast 消息提示 ----
+   右上角临时浮层，用于显示操作成功/失败反馈，3 秒后自动消失。 */
+
+/* 每页条数选择器 */
+.page-size-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.page-size-wrapper label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.page-size-select {
+  width: auto;
+  min-width: 70px;
+  padding: 6px 8px;
+}
+
+/* 查询按钮 */
+.query-btn {
+  padding: 6px 16px;
+  height: 34px;
+  border: 1px solid transparent;
+  background: var(--gradient-cyan);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-smooth);
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.query-btn:hover {
+  box-shadow:
+    0 4px 16px rgba(59, 130, 246, 0.5),
+    0 0 12px rgba(6, 182, 212, 0.4);
+  transform: translateY(-1px);
+}
+
+/* 重置按钮 */
+.reset-btn {
+  padding: 6px 16px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  background: rgba(15, 23, 41, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-smooth);
+  font-family: inherit;
+}
+
+.reset-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+/* 分页控件（底部，内容右对齐） */
+.pagination-container {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-default);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-right: auto;
+}
+
+.pagination-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-size-inline {
+  width: auto;
+  min-width: 64px;
+  padding: 5px 8px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.page-size-label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.page-btn:hover:not(:disabled):not(.active) {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.page-btn.active {
+  background: var(--gradient-cyan);
+  color: #fff;
+  border-color: transparent;
+  cursor: default;
+  box-shadow:
+    0 2px 8px rgba(59, 130, 246, 0.4),
+    0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-ellipsis {
+  padding: 0 4px;
+  color: var(--text-tertiary);
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 错误提示置于最顶层中间位置（覆盖模态框） */
+.toast.error {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  max-width: 90vw;
+  animation: slideDown 0.25s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.toast.success .toast-icon {
+  background: var(--status-completed-bg);
+  color: var(--status-completed);
+}
+
+.toast.error .toast-icon {
+  background: var(--status-failed-bg);
+  color: var(--status-failed);
+}
+
+.toast-text {
+  font-size: 13px;
+}
+
+/* ---- 12. 响应式适配 ----
+   小屏幕(<=768px)下调整导航栏、统计卡片、表格的布局以保证可用性。 */
+/* Responsive */
+@media (max-width: 900px) {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .main {
+    padding: 16px;
+  }
+
+  .stats-row {
+    flex-wrap: wrap;
+  }
+
+  .stat-box {
+    flex: 1 1 45%;
+  }
+
+  .jobs-table,
+  .history-table {
+    font-size: 12px;
+  }
+
+  .jobs-table th,
+  .jobs-table td,
+  .history-table th,
+  .history-table td {
+    padding: 8px 12px;
+  }
+}
+
+/* ---- 13. 自定义滚动条 ----
+   深色主题滚动条样式，与整体视觉风格统一。 */
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+/* ---- 14. 添加任务模态框 ----
+   点击"添加任务"按钮弹出的对话框，包含任务源(Script Path/Inline Code)、
+   调度类型(间隔/每日/Cron/一次性)、任务名等表单字段。 */
+/* ===== Add Task Modal ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.active {
+  display: flex;
+  animation: overlayFade 0.2s ease;
+}
+
+@keyframes overlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  background: rgba(15, 23, 41, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.7),
+    0 0 40px rgba(59, 130, 246, 0.15);
+  animation: modalSlide 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+/* 模态框顶部渐变光带 */
+.modal::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+@keyframes modalSlide {
+  from {
+    transform: translateY(20px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    transparent 100%
+  );
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  color: var(--status-failed);
+  background: var(--status-failed-bg);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.form-group label .required {
+  color: var(--status-failed);
+}
+
+.form-group .hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  background: rgba(26, 35, 50, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  transition: all var(--transition-fast);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.15),
+    0 0 12px rgba(59, 130, 246, 0.2);
+  background: rgba(26, 35, 50, 0.8);
+}
+
+.form-textarea {
+  min-height: 70px;
+  resize: vertical;
+  font-family: var(--font-mono);
+}
+
+/* 禁用状态的表单输入（如编辑模式下不允许修改的任务名） */
+.form-input.input-disabled,
+.form-select.input-disabled,
+.form-textarea.input-disabled {
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.schedule-fields {
+  display: none;
+}
+
+.schedule-fields.active {
+  display: block;
+}
+
+/* ===== 可视化 Cron 配置面板 ===== */
+.cron-builder {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.cron-builder-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.cron-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.cron-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cron-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.cron-field select {
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.cron-field .cron-value {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-height: 32px;
+}
+
+.cron-field .cron-value:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--bg-tertiary);
+}
+
+/* 预设按钮区 */
+.cron-presets {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cron-presets-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.cron-preset-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cron-preset-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* 表达式预览 */
+.cron-preview {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cron-preview code {
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.btn {
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary {
+  background: rgba(26, 35, 50, 0.8);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
+.btn-secondary:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.btn-primary {
+  background: var(--gradient-cyan);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+  box-shadow:
+    0 4px 16px rgba(59, 130, 246, 0.5),
+    0 0 12px rgba(6, 182, 212, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 任务详情模态框：网格布局展示任务字段 */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.detail-item-full {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* 任务详情中的内联代码展示（保留缩进与换行）*/
+.detail-code {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.add-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.add-task-btn:hover {
+  background: var(--accent-secondary);
+}
+
+/* ---- 15. 语言切换下拉菜单 ----
+   右上角地球图标按钮，点击展开中文/英文选项，当前语言高亮带 ✓。 */
+/* Language Dropdown */
+.lang-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.lang-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+
+.lang-dropdown-trigger:hover {
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.lang-dropdown-trigger .lang-current {
+  min-width: 18px;
+  text-align: center;
+}
+
+.lang-dropdown-trigger .lang-arrow {
+  transition: transform var(--transition-fast);
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.lang-dropdown.open .lang-arrow {
+  transform: rotate(180deg);
+}
+
+.lang-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 120px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  z-index: 1000;
+  display: none;
+}
+
+.lang-dropdown.open .lang-dropdown-menu {
+  display: block;
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  width: 100%;
+  text-align: left;
+}
+
+.lang-option:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.lang-option.active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.lang-option .lang-check {
+  opacity: 0;
+  font-size: 11px;
+}
+
+.lang-option.active .lang-check {
+  opacity: 1;
+}
+
+/* ---- 16. 任务源切换标签 ----
+   添加任务弹窗中切换"脚本文件路径"与"内联代码"两种互斥的任务来源。 */
+/* Task Source Tabs (Script File / Inline Code) */
+.source-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(15, 23, 41, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 12px;
+}
+
+.source-tab {
+  flex: 1;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  font-family: var(--font-sans);
+  position: relative;
+}
+
+.source-tab:hover {
+  color: var(--text-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.source-tab.active {
+  background: var(--gradient-cyan);
+  color: white;
+  box-shadow:
+    0 2px 8px rgba(59, 130, 246, 0.4),
+    0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+/* 编辑模式：disabled 的 tab 仍保持激活样式（不可切换，仅作标识） */
+.source-tab:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.source-tab:disabled.active {
+  background: var(--gradient-cyan);
+  color: white;
+  box-shadow:
+    0 2px 8px rgba(59, 130, 246, 0.4),
+    0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+.source-panel {
+  display: none;
+}
+
+.source-panel.active {
+  display: block;
+}
+
+.code-editor {
+  width: 100%;
+  min-height: 160px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  line-height: 1.6;
+  resize: vertical;
+  tab-size: 4;
+}
+
+.code-editor:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}

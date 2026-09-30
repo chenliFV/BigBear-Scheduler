@@ -1,0 +1,43 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.pyc
+build/
+dist/
+wheels/
+*.egg-info
+.eggs/
+
+# Virtual environments
+.venv
+.env
+venv/
+ENV/
+
+# Scheduler state files
+!package.json
+!pyproject.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Examples for local dev
+example_usage.py
+api.py
+simple_example.py
+my_app_scheduler.json
+scheduler_state.json
+scheduler.db
+
+Log/
+*.pid
+HistoryCleanUpTask/HistoryCleanUpBackup/
+docker/log

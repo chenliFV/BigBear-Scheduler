@@ -1,0 +1,37 @@
+# 本文件是 .dockerignore 的 BuildKit 变体：与 Dockerfile 同目录、以 Dockerfile 文件名
+# 命名（Dockerfile + ".dockerignore"），优先级高于构建上下文根目录的 .dockerignore，
+# 因此可以与其余 Docker 部署文件一起集中在本目录。
+# 注意：
+#   1. 排除清单中的路径仍相对构建上下文根目录（项目根，见 docker-compose.yml 的 context: ..）
+#   2. 仅 BuildKit 构建器生效（Docker 20.10+ 默认启用）；DOCKER_BUILDKIT=0 的老构建器
+#      会静默忽略本文件——构建仍会成功，只是上下文变大变慢
+
+# 版本控制与 IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Python 运行产物
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 虚拟环境
+.venv/
+venv/
+scheduler_env/
+
+# 运行时产物（由挂载卷承载，不进镜像）
+# 注意：不能整目录排除 docker/，Dockerfile.all 需要 COPY docker/ 下的
+# start-all.sh、database.json、fastapi.prod.json 进构建上下文
+docker/log/
+Log/
+*.pid
+*.db
+*.sqlite*
+
+# 文档资源（镜像内不需要）
+docs/
+*.md

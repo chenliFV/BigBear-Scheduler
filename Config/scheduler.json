@@ -1,0 +1,30 @@
+{
+    "database": {
+        "storage": "sqlmodel"
+    },
+    "scheduler": {
+        "max_history": 10000,
+        "max_workers": 20,
+        "history_retention_days": 8,
+        "max_dead_letters": 500,
+        "quiet": false
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+        "datefmt": "%Y-%m-%d %H:%M:%S",
+        "console": true,
+        "rotation": {
+            "when": "midnight",
+            "interval": 1,
+            "backup_count": 30
+        },
+        "worker": {
+            "dir": "Log/worker",
+            "filename": "worker.log"
+        }
+    },
+    "worker": {
+        "shutdown_timeout": 60
+    }
+}

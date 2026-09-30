@@ -1,0 +1,22 @@
+{
+    "connections": {
+        "default": {
+            "driver": "mysql+pymysql",
+            "host": "localhost",
+            "port": 3306,
+            "user": "stkuser",
+            "password": "stkuser",
+            "charset": "utf8mb4"
+        }
+    },
+    "databases": {
+        "scheduler": {
+            "connection": "default",
+            "name": "scheduler"
+        },
+        "business": {
+            "connection": "default",
+            "name": "test"
+        }
+    }
+}

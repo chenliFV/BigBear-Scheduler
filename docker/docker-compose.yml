@@ -1,0 +1,81 @@
+# Docker Compose 编排：MySQL + Worker + API 三个服务
+#
+# 快速启动（在本目录执行）:  docker compose up -d --build
+# Dashboard:  http://localhost:8000/scheduler/
+#
+# 环境变量可在本目录 .env 文件或启动命令中覆盖，默认值如下：
+#   MYSQL_ROOT_PASSWORD  MySQL root 密码（默认 root123456）
+#   MYSQL_USER           业务账号名（默认 stkuser，需同步修改 initdb/01-init.sql）
+#   MYSQL_PASSWORD       业务账号密码（默认 stkuser）
+#   API_PORT             宿主机映射端口（默认 8000）
+
+# 构建配置复用：上下文为项目根目录，Dockerfile 位于本目录
+x-app-build: &app_build
+  context: ..
+  dockerfile: docker/Dockerfile
+
+# 应用进程公共环境：数据库连接参数经 database.json 中的 ${DB_*} 占位符注入
+x-app-env: &app_env
+  TZ: Asia/Shanghai
+  DB_HOST: mysql
+  DB_USER: ${MYSQL_USER:-stkuser}
+  DB_PASSWORD: ${MYSQL_PASSWORD:-stkuser}
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: scheduler-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
+      # 调度器存储库由镜像入口自动创建并授权给 MYSQL_USER
+      MYSQL_DATABASE: scheduler
+      MYSQL_USER: ${MYSQL_USER:-stkuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-stkuser}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # 使用 mysql_native_password 认证，PyMySQL 无需额外安装 cryptography
+      - --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    build: *app_build
+    container_name: scheduler-worker
+    restart: unless-stopped
+    # 优雅关闭：Worker 等待任务完成最长 60s（worker.shutdown_timeout），预留余量
+    stop_grace_period: 90s
+    command: python SchedulerRun.py
+    environment: *app_env
+    volumes:
+      # Docker 专用数据库配置（${DB_HOST} 等由环境变量展开）挂载为容器内默认配置
+      - ./database.json:/app/Config/database.json:ro
+      - ./log:/app/Log
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  api:
+    build: *app_build
+    container_name: scheduler-api
+    restart: unless-stopped
+    command: python FastApiRun.py
+    environment: *app_env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./database.json:/app/Config/database.json:ro
+      - ./log:/app/Log
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql-data:

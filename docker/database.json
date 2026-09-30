@@ -1,0 +1,22 @@
+{
+    "connections": {
+        "default": {
+            "driver": "mysql+pymysql",
+            "host": "${DB_HOST}",
+            "port": 3306,
+            "user": "${DB_USER}",
+            "password": "${DB_PASSWORD}",
+            "charset": "utf8mb4"
+        }
+    },
+    "databases": {
+        "scheduler": {
+            "connection": "default",
+            "name": "scheduler"
+        },
+        "business": {
+            "connection": "default",
+            "name": "business"
+        }
+    }
+}

@@ -1,0 +1,87 @@
+# 全量单容器镜像（All-in-One）：MySQL 8.0 + SSH + Python 3.12 环境 + 调度器（Worker + API 同容器）
+# 与拆分部署（Dockerfile，MySQL 独立容器）二选一使用。
+#
+# 构建: docker build -f docker/Dockerfile.all -t bigbear-scheduler-all:latest ..
+#   内网可加速 apt: --build-arg APT_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/ubuntu/
+#
+# 运行: docker run -d --name scheduler-all \
+#           -p 8000:8000 -p 3308:3306 -p 2222:22 \
+#           -v scheduler-all-mysql:/var/lib/mysql \
+#           -v /Log:/app/Log \
+#           --restart unless-stopped \
+#           bigbear-scheduler-all:latest
+#   （--restart unless-stopped：容器退出/宿主机重启后自动拉起，入口脚本会依次恢复
+#     MySQL、SSH、Worker、API，无需人工干预）
+#
+# 说明：基于 ubuntu:24.04（官方归档自带 mysql-server 8.0 与 python3.12）；
+#       镜像内已烘焙 database.json（DB_HOST 由环境变量注入，默认 127.0.0.1）
+#       与关闭热重载的 fastapi.json，挂载同名文件可覆盖。
+FROM ubuntu:24.04
+
+# APT_MIRROR: 可选 apt 源替换（修改 deb822 格式的 /etc/apt/sources.list.d/ubuntu.sources）。
+# 注意：基础镜像不含 ca-certificates，无法校验 https 证书，必须使用 http:// 源，
+# 如 http://mirrors.tuna.tsinghua.edu.cn/ubuntu/
+ARG APT_MIRROR=""
+RUN if [ -n "$APT_MIRROR" ]; then \
+    sed -i "s|http://archive.ubuntu.com/ubuntu/|${APT_MIRROR}|g; s|http://security.ubuntu.com/ubuntu/|${APT_MIRROR}|g" /etc/apt/sources.list.d/ubuntu.sources; \
+    fi
+
+ENV TZ=Asia/Shanghai \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    DB_HOST=127.0.0.1 \
+    DB_USER=stkuser \
+    DB_PASSWORD=stkuser
+
+# 1) 系统包：基础工具（vim/zip/unzip/curl/less/procps）+ MySQL 8.0 服务端 + SSH 服务端
+#    + Python 3.12（venv/dev 头文件）+ psycopg2 源码编译依赖（gcc/libc6-dev/libpq-dev）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    vim \
+    zip \
+    unzip \
+    curl \
+    less \
+    procps \
+    tzdata \
+    openssh-server \
+    mysql-server \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    gcc \
+    libc6-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1.1) SSH：允许 root 密码登录（密码由运行时 SSH_PASSWORD 环境变量设置，见 start-all.sh）
+RUN sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+    && mkdir -p /run/sshd
+
+# 2) 独立虚拟环境安装 Python 依赖（复用层缓存）
+ENV PATH="/opt/venv/bin:$PATH"
+RUN python3.12 -m venv /opt/venv
+WORKDIR /app
+COPY Requirements.txt ./
+RUN pip install --no-cache-dir -r Requirements.txt
+
+# 3) 项目代码 + Docker 场景配置（database.json 环境变量占位 / fastapi.json 关闭热重载）
+COPY . .
+COPY docker/database.json /app/Config/database.json
+COPY docker/fastapi.prod.json /app/Config/fastapi.json
+
+# 4) MySQL 运行目录与日志目录
+#    注意：ubuntu 的 mysql-server 包安装时已初始化 /var/lib/mysql，
+#    清空以保证容器首启时由 start-all.sh 按环境变量统一初始化（建库建号）
+RUN rm -rf /var/lib/mysql/* \
+    && mkdir -p /app/Log /var/run/mysqld \
+    && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld
+VOLUME ["/var/lib/mysql", "/app/Log"]
+
+# Dashboard / REST API、MySQL、SSH
+EXPOSE 8000 3306 22
+
+# 5) 入口脚本：初始化并启动 MySQL → 建库建号 → 同时启动 Worker 与 API → 优雅关闭
+COPY docker/start-all.sh /start.sh
+RUN chmod +x /start.sh
+ENTRYPOINT ["/start.sh"]

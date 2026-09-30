@@ -1,0 +1,121 @@
+{
+    "drop_missing": false,
+    "tables": [
+        {
+            "name": "example_user_logs",
+            "comment": "示例表1：演示通过 JSON 配置创建数据表。可删除或按需修改。",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "int",
+                    "primary_key": true,
+                    "autoincrement": true,
+                    "nullable": false,
+                    "comment": "自增主键"
+                },
+                {
+                    "name": "user_name",
+                    "type": "str",
+                    "length": 64,
+                    "nullable": false,
+                    "comment": "用户名（VARCHAR(64)）"
+                },
+                {
+                    "name": "action",
+                    "type": "str",
+                    "length": 100,
+                    "nullable": false,
+                    "comment": "用户操作类型"
+                },
+                {
+                    "name": "score",
+                    "type": "float",
+                    "nullable": true,
+                    "comment": "操作评分（FLOAT，可为空）"
+                },
+                {
+                    "name": "is_active",
+                    "type": "bool",
+                    "default": true,
+                    "comment": "是否有效（默认 true）"
+                },
+                {
+                    "name": "extra",
+                    "type": "json",
+                    "nullable": true,
+                    "comment": "扩展字段（JSON 文档）"
+                },
+                {
+                    "name": "created_at",
+                    "type": "datetime",
+                    "default": "now",
+                    "comment": "创建时间（数据库当前时间，DEFAULT CURRENT_TIMESTAMP）"
+                }
+            ],
+            "indexes": [
+                {
+                    "name": "idx_user_logs_user_name",
+                    "columns": [
+                        "user_name"
+                    ],
+                    "unique": false
+                },
+                {
+                    "name": "idx_user_logs_created_at",
+                    "columns": [
+                        "created_at"
+                    ],
+                    "unique": false
+                }
+            ]
+        },
+        {
+            "name": "example_products",
+            "comment": "示例表2：商品信息表，演示 Numeric 定点小数与唯一索引。",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "int",
+                    "primary_key": true,
+                    "autoincrement": true
+                },
+                {
+                    "name": "product_code",
+                    "type": "str",
+                    "length": 32,
+                    "nullable": false,
+                    "unique": true,
+                    "comment": "商品编码（VARCHAR(32)，唯一约束）"
+                },
+                {
+                    "name": "name",
+                    "type": "str",
+                    "length": 128,
+                    "nullable": false
+                },
+                {
+                    "name": "price",
+                    "type": "numeric",
+                    "precision": 10,
+                    "scale": 2,
+                    "comment": "商品价格（NUMERIC(10,2)，最多 8 位整数 + 2 位小数）"
+                },
+                {
+                    "name": "description",
+                    "type": "text",
+                    "nullable": true,
+                    "comment": "长文本描述"
+                }
+            ],
+            "indexes": [
+                {
+                    "name": "idx_products_name",
+                    "columns": [
+                        "name"
+                    ],
+                    "unique": false
+                }
+            ]
+        }
+    ]
+}
