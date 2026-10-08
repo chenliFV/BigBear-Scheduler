@@ -18,7 +18,7 @@
 from typing import Optional
 
 try:
-    from sqlalchemy import DOUBLE, Column
+    from sqlalchemy import DOUBLE, Column, Text
     from sqlmodel import Field, SQLModel
 except ImportError as e:
     raise ImportError(
@@ -60,18 +60,18 @@ class JobModel(SQLModel, table=True):
     catch_up: bool = True  # 是否补偿错过的执行
     schedule_type: str = "interval"  # 调度类型
     schedule_time: Optional[str] = None  # 定时执行时间 (HH:MM)
-    schedule_days: Optional[str] = None  # 存储为 JSON 字符串 "[0, 1, 2]"
+    schedule_days: Optional[str] = Field(default=None, sa_column=Column(Text))  # 存储为 JSON 字符串 "[0, 1, 2]"
     timeout: Optional[float] = Field(default=None, sa_column=Column(DOUBLE))
     paused: bool = False  # 是否暂停
     timezone: Optional[str] = "Asia/Shanghai"  # 时区, 默认使用上海时区
     cron_expression: Optional[str] = None  # cron 表达式
     # 脚本任务专用字段
     script_path: Optional[str] = None  # 外部脚本路径
-    script_args: Optional[str] = None  # 存储为 JSON 字符串 '["arg1", "arg2"]'
-    script_code: Optional[str] = None  # 动态代码内容（与 script_path 互斥）
+    script_args: Optional[str] = Field(default=None, sa_column=Column(Text))  # 存储为 JSON 字符串 '["arg1", "arg2"]'
+    script_code: Optional[str] = Field(default=None, sa_column=Column(Text))  # 动态代码内容（与 script_path 互斥）
     # 函数任务的调用参数(存储为 JSON 字符串), 脚本任务不使用
-    args: Optional[str] = None  # 存储为 JSON 字符串 '["a", 1]'
-    kwargs: Optional[str] = None  # 存储为 JSON 字符串 '{"k": "v"}'
+    args: Optional[str] = Field(default=None, sa_column=Column(Text))  # 存储为 JSON 字符串 '["a", 1]'
+    kwargs: Optional[str] = Field(default=None, sa_column=Column(Text))  # 存储为 JSON 字符串 '{"k": "v"}'
 
     def to_dict(self) -> dict:
         """转换为字典，用于 Job 对象重建。

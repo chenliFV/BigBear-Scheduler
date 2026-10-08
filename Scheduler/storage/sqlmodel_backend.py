@@ -151,8 +151,11 @@ class SQLModelStorageBackend(StorageBackend):
 
         迁移策略:
             - 使用 ALTER TABLE ADD COLUMN 添加缺失的列
-            - 若列已存在（抛出异常），回滚并跳过
+            - 若列已存在但类型不符（如旧库中 script_code 被建成 VARCHAR(255)，
+              无法容纳任务内联源码导致 Data too long 报错），使用
+              MODIFY COLUMN 修正列类型
             - 采用"尝试-捕获"模式，不依赖数据库元数据查询，兼容性好
+              （MODIFY 为 MySQL 语法，SQLite 不支持该语法时会静默跳过）
 
         当前迁移项:
             - scheduler_jobs.script_path: VARCHAR(1024)，脚本任务路径
@@ -168,6 +171,7 @@ class SQLModelStorageBackend(StorageBackend):
             ("scheduler_jobs", "script_path", "VARCHAR(1024)"),
             ("scheduler_jobs", "script_args", "TEXT"),
             ("scheduler_jobs", "script_code", "TEXT"),
+            ("scheduler_jobs", "schedule_days", "TEXT"),
             ("scheduler_jobs", "args", "TEXT"),
             ("scheduler_jobs", "kwargs", "TEXT"),
         ]
@@ -182,10 +186,23 @@ class SQLModelStorageBackend(StorageBackend):
                         logger.info(
                             f"Schema migration: added column {table}.{column}"
                         )
-                except Exception as e:
-                    # 列已存在或其他错误，回滚并继续
+                except Exception:
+                    # 列已存在：若类型不符则修正（如旧库 VARCHAR(255) -> TEXT）
                     conn.rollback()
-                    # 调试时可查看: logger.debug(f"Migration {column}: {e}")
+                    try:
+                        conn.execute(
+                            text(
+                                f"ALTER TABLE {table} MODIFY COLUMN {column} {col_type}"
+                            )
+                        )
+                        conn.commit()
+                        if not self.quiet:
+                            logger.info(
+                                f"Schema migration: modified column {table}.{column} -> {col_type}"
+                            )
+                    except Exception:
+                        # SQLite 等不支持 MODIFY 的库，或类型已符合，静默跳过
+                        conn.rollback()
 
     def _safe_url(self) -> str:
         """获取密码脱敏的数据库 URL（用于日志记录）。
